@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+!**/src/androidTest/**/build/
+
+# Android
+local.properties
+*.ap_
+*.apk
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+
+# Keystore & secrets — JANGAN commit file asli
+*.jks
+*.keystore
+app/src/main/assets/service_account.json
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
