@@ -1,0 +1,60 @@
+name: Build APK
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Inject service account (dari secret)
+        env:
+          SA_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$SA_JSON" ]; then
+            printf '%s' "$SA_JSON" > app/src/main/assets/service_account.json
+            echo "service_account.json diisi dari secret."
+          else
+            echo "Secret GOOGLE_SERVICE_ACCOUNT_JSON kosong — pakai placeholder (backup lokal saja)."
+          fi
+
+      - name: Setup Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
+
+      - name: Build debug APK
+        env:
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: air-kita-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Rolling release (latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "AIR KITA — latest"
+          body: "APK debug terbaru AIR KITA (Admin Tagihan Air PAMSIMAS). Instal pribadi/organisasi."
+          files: app/build/outputs/apk/debug/*.apk
