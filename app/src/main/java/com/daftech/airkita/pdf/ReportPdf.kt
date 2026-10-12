@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.daftech.airkita.data.PrefKeys
 import com.daftech.airkita.data.Repository
 import com.daftech.airkita.util.Fmt
 import java.io.File
@@ -68,6 +69,7 @@ object ReportPdf {
         val (total, paid) = repo.billSums(period)
         val (kasIn, kasOut) = repo.kasSums(period)
         val balance = repo.kasBalance()
+        val opening = repo.getSetting(PrefKeys.KAS_OPENING, "0").toLongOrNull() ?: 0L
         val label = Fmt.periodLabel(period)
         val arrears = rows.filter { !it.bill.paid }
 
@@ -92,7 +94,7 @@ object ReportPdf {
             "Tunggakan" to Fmt.rp(total - paid),
             "Pemasukan kas bulan ini" to Fmt.rp(kasIn),
             "Pengeluaran kas bulan ini" to Fmt.rp(kasOut),
-            "Saldo kas saat ini" to Fmt.rp(balance)
+            "Saldo akhir kas (total)" to Fmt.rp(balance)
         ).forEach { (k, v) ->
             d.ensure(16f)
             d.text(M, k, 11f)
@@ -151,9 +153,10 @@ object ReportPdf {
         d.text(M, "Arus Kas Bulan $label", 13f, true)
         d.gap(16f)
         listOf(
+            "Saldo awal kas" to Fmt.rp(opening),
             "Pemasukan (pembayaran iuran)" to Fmt.rp(kasIn),
             "Pengeluaran operasional" to Fmt.rp(kasOut),
-            "Saldo kas saat ini" to Fmt.rp(balance)
+            "Saldo akhir kas (total)" to Fmt.rp(balance)
         ).forEach { (k, v) ->
             d.ensure(16f)
             d.text(M, k, 11f)

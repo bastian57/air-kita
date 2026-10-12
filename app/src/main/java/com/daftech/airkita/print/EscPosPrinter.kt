@@ -81,6 +81,9 @@ object EscPosPrinter {
         row("Meter awal", "${b.meterStart} m3")
         row("Meter akhir", "${b.meterEnd} m3")
         row("Pemakaian", "${b.usageM3} m3")
+        if (b.paid && b.paidAt != null) {
+            row("Tgl bayar", Fmt.dateStr(b.paidAt))
+        }
         dash()
         row("Blok1 ${b.block1m3}x${t.block1Rate}", Fmt.rp(b.block1m3.toLong() * t.block1Rate).replace("Rp", "Rp"))
         row("Blok2 ${b.block2m3}x${t.block2Rate}", Fmt.rp(b.block2m3.toLong() * t.block2Rate))
@@ -108,6 +111,9 @@ object EscPosPrinter {
         sb.appendLine("Meter awal: ${b.meterStart} m³")
         sb.appendLine("Meter akhir: ${b.meterEnd} m³")
         sb.appendLine("Pemakaian : ${b.usageM3} m³")
+        if (b.paid && b.paidAt != null) {
+            sb.appendLine("Tanggal bayar: ${Fmt.dateStr(b.paidAt)}")
+        }
         sb.appendLine("--------------------------------")
         sb.appendLine("Blok 1 (${b.block1m3} × ${Fmt.rp(t.block1Rate)}): ${Fmt.rp(b.block1m3.toLong() * t.block1Rate)}")
         sb.appendLine("Blok 2 (${b.block2m3} × ${Fmt.rp(t.block2Rate)}): ${Fmt.rp(b.block2m3.toLong() * t.block2Rate)}")
