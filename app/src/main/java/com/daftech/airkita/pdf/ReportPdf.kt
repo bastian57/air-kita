@@ -2,88 +2,65 @@ package com.daftech.airkita.pdf
 
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Typeface
-import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.print.PrintAttributes
-import android.print.pdf.PrintedPdfDocument
 import android.provider.MediaStore
 import com.daftech.airkita.data.Repository
 import com.daftech.airkita.util.Fmt
 import java.io.File
 
 /**
- * Laporan bulanan PDF (A4) — dibuat 100% di HP via android.print.pdf.PrintedPdfDocument.
+ * Laporan bulanan PDF (A4) — dibuat 100% di HP via SimplePdf (murni Kotlin).
  * Isi: kop AIR KITA, ringkasan, tabel pelanggan, penunggak, arus kas,
  * tanda tangan, footer "apk by DAFTECH".
  */
 object ReportPdf {
-    private const val PW = 595f
-    private const val PH = 842f
+    private const val PW = SimplePdf.PW
+    private const val PH = SimplePdf.PH
     private const val M = 40f
 
-    private class Doc(val doc: PrintedPdfDocument) {
-        var pageNo = 0
-        lateinit var page: PdfDocument.Page
-        lateinit var canvas: Canvas
+    private class Doc {
+        val pages = mutableListOf<SimplePdf.Page>()
+        var page: SimplePdf.Page = SimplePdf.Page()
         var y = 0f
+        var pageNo = 0
+
+        init { newPage() }
 
         fun newPage() {
             if (pageNo > 0) {
                 footer()
-                doc.finishPage(page)
+                pages.add(page)
             }
             pageNo++
-            // PrintedPdfDocument.startPage(int) — tanpa PageInfo.Builder
-            page = doc.startPage(pageNo)
-            canvas = page.canvas
+            page = SimplePdf.Page()
             y = M + 6
         }
 
         fun finish() {
             footer()
-            doc.finishPage(page)
+            pages.add(page)
         }
 
         private fun footer() {
-            val p = Paint().apply { textSize = 9f; color = 0xFF64748BL.toInt() }
-            canvas.drawLine(M, PH - 44, PW - M, PH - 44, p)
-            p.textAlign = Paint.Align.LEFT
-            canvas.drawText("apk by DAFTECH", M, PH - 28, p)
-            p.textAlign = Paint.Align.RIGHT
-            canvas.drawText("Halaman $pageNo", PW - M, PH - 28, p)
+            page.line(M, PH - 44, PW - M, PH - 44)
+            page.text(M, PH - 28, "apk by DAFTECH", 9f)
+            page.text(PW - M, PH - 28, "Halaman $pageNo", 9f, align = 2)
         }
 
         fun ensure(space: Float) {
             if (y + space > PH - 70) newPage()
         }
-    }
 
-    private fun paint(size: Float, bold: Boolean, color: Int = 0xFF0F2440L.toInt()): Paint =
-        Paint().apply {
-            textSize = size
-            this.color = color
-            typeface = Typeface.create(Typeface.DEFAULT, if (bold) Typeface.BOLD else Typeface.NORMAL)
-            isAntiAlias = true
+        fun text(x: Float, s: String, size: Float = 11f, bold: Boolean = false, align: Int = 0) {
+            page.text(x, y, s, size, bold, align)
         }
-
-    private fun Doc.text(x: Float, s: String, size: Float = 11f, bold: Boolean = false,
-                         align: Paint.Align = Paint.Align.LEFT, color: Int = 0xFF0F2440L.toInt()) {
-        val p = paint(size, bold, color)
-        p.textAlign = align
-        canvas.drawText(s, x, y, p)
-    }
-
-    private fun Doc.gap(h: Float) { y += h }
-
-    private fun Doc.hline() {
-        val p = paint(10f, false, 0xFFE3EAF3L.toInt())
-        canvas.drawLine(M, y, PW - M, y, p)
-        y += 10
+        fun gap(h: Float) { y += h }
+        fun hline() {
+            page.line(M, y, PW - M, y)
+            y += 10
+        }
     }
 
     suspend fun generate(context: Context, repo: Repository, period: String): File {
@@ -94,22 +71,14 @@ object ReportPdf {
         val label = Fmt.periodLabel(period)
         val arrears = rows.filter { !it.bill.paid }
 
-        val doc = PrintedPdfDocument(
-            context,
-            PrintAttributes.Builder()
-                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
-                .build()
-        )
-        val d = Doc(doc)
-        d.newPage()
+        val d = Doc()
 
         // ---- Kop ----
-        d.text(PW / 2, "AIR KITA", 22f, true, Paint.Align.CENTER, 0xFF0A2E52L.toInt())
+        d.text(PW / 2, "AIR KITA", 22f, true, 1)
         d.gap(24f)
-        d.text(PW / 2, "Laporan Bulanan Tagihan Air PAMSIMAS", 12f, true, Paint.Align.CENTER)
+        d.text(PW / 2, "Laporan Bulanan Tagihan Air PAMSIMAS", 12f, true, 1)
         d.gap(16f)
-        d.text(PW / 2, label, 12f, false, Paint.Align.CENTER, 0xFF64748BL.toInt())
+        d.text(PW / 2, label, 12f, align = 1)
         d.gap(10f)
         d.hline()
 
@@ -127,7 +96,7 @@ object ReportPdf {
         ).forEach { (k, v) ->
             d.ensure(16f)
             d.text(M, k, 11f)
-            d.text(PW - M, v, 11f, true, Paint.Align.RIGHT)
+            d.text(PW - M, v, 11f, true, 2)
             d.gap(15f)
         }
         d.gap(6f)
@@ -141,7 +110,7 @@ object ReportPdf {
             d.text(cols[0], "No", 10f, true)
             d.text(cols[1], "Nama", 10f, true)
             d.text(cols[2], "Meter", 10f, true)
-            d.text(cols[3], "m³", 10f, true)
+            d.text(cols[3], "m3", 10f, true)
             d.text(cols[4], "Tagihan", 10f, true)
             d.text(cols[5], "Status", 10f, true)
             d.gap(14f)
@@ -155,8 +124,7 @@ object ReportPdf {
             d.text(cols[2], "${b.meterStart}-${b.meterEnd}", 10f)
             d.text(cols[3], "${b.usageM3}", 10f)
             d.text(cols[4], Fmt.rp(b.total), 10f)
-            d.text(cols[5], if (b.paid) "Lunas" else "Belum", 10f, true,
-                color = if (b.paid) 0xFF16A34AL.toInt() else 0xFFDC2626L.toInt())
+            d.text(cols[5], if (b.paid) "Lunas" else "Belum", 10f, true)
             d.gap(14f)
         }
         d.gap(6f)
@@ -166,13 +134,13 @@ object ReportPdf {
         d.text(M, "Daftar Penunggak (${arrears.size})", 13f, true)
         d.gap(16f)
         if (arrears.isEmpty()) {
-            d.text(M, "Tidak ada tunggakan. Semua lunas.", 11f, false, color = 0xFF16A34AL.toInt())
+            d.text(M, "Tidak ada tunggakan. Semua lunas.", 11f)
             d.gap(15f)
         } else {
             arrears.forEach { r ->
                 d.ensure(16f)
-                d.text(M, "• ${r.customer.name} (${r.customer.meterNo})", 11f)
-                d.text(PW - M, Fmt.rp(r.bill.total), 11f, true, Paint.Align.RIGHT)
+                d.text(M, "- ${r.customer.name} (${r.customer.meterNo})", 11f)
+                d.text(PW - M, Fmt.rp(r.bill.total), 11f, true, 2)
                 d.gap(15f)
             }
         }
@@ -189,23 +157,23 @@ object ReportPdf {
         ).forEach { (k, v) ->
             d.ensure(16f)
             d.text(M, k, 11f)
-            d.text(PW - M, v, 11f, true, Paint.Align.RIGHT)
+            d.text(PW - M, v, 11f, true, 2)
             d.gap(15f)
         }
         d.gap(10f)
 
         // ---- Tanda tangan ----
         d.ensure(90f)
-        d.text(M + 60, "Bendahara,", 11f, align = Paint.Align.CENTER)
-        d.text(PW - M - 60, "Ketua,", 11f, align = Paint.Align.CENTER)
+        d.text(M + 60, "Bendahara,", 11f, align = 1)
+        d.text(PW - M - 60, "Ketua,", 11f, align = 1)
         d.gap(56f)
-        d.text(M + 60, "( ............................ )", 11f, align = Paint.Align.CENTER)
-        d.text(PW - M - 60, "( ............................ )", 11f, align = Paint.Align.CENTER)
+        d.text(M + 60, "( ............................ )", 11f, align = 1)
+        d.text(PW - M - 60, "( ............................ )", 11f, align = 1)
 
         d.finish()
+        val bytes = SimplePdf.generate(d.pages)
         val file = File(context.cacheDir, "Laporan-AIR-KITA-$period.pdf")
-        file.outputStream().use { doc.writeTo(it) }
-        doc.close()
+        file.writeBytes(bytes)
         return file
     }
 
