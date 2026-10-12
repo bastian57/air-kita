@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.daftech.airkita"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.daftech.airkita"
