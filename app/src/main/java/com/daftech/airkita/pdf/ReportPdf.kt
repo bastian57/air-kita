@@ -36,7 +36,9 @@ object ReportPdf {
                 doc.finishPage(page)
             }
             pageNo++
-            page = doc.startPage(PdfDocument.PageInfo.Builder(PW.toInt(), PH.toInt(), pageNo).build())
+            val pageInfoBuilder = PdfDocument.PageInfo.Builder(PW.toInt(), PH.toInt(), pageNo)
+            val pageInfo: PdfDocument.PageInfo = pageInfoBuilder.build()
+            page = doc.startPage(pageInfo)
             canvas = page.canvas
             y = M + 6
         }

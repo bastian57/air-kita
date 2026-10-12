@@ -140,7 +140,7 @@ fun BillDetailScreen(repo: Repository, nav: NavController, billId: Long) {
                                     }
                                     return@launch
                                 }
-                                val res = EscPosPrinter.print(mac, EscPosPrinter.buildReceipt(b, c, tariff))
+                                val res = EscPosPrinter.print(ctx, mac, EscPosPrinter.buildReceipt(b, c, tariff))
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(
                                         ctx,
