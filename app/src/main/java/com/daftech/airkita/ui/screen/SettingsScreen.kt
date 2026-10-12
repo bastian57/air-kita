@@ -1,10 +1,13 @@
 package com.daftech.airkita.ui.screen
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
@@ -22,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -95,9 +99,54 @@ fun SettingsScreen(repo: Repository, nav: NavController) {
     var devices by remember { mutableStateOf<List<BluetoothDevice>>(emptyList()) }
     var savedMac by remember { mutableStateOf("") }
     var savedName by remember { mutableStateOf("") }
+    var discovered by remember { mutableStateOf<List<BluetoothDevice>>(emptyList()) }
+    var scanning by remember { mutableStateOf(false) }
     val btLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) devices = bondedDevices(ctx) }
+    val scanLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { res ->
+        if (res.values.all { it }) {
+            discovered = emptyList()
+            scanning = true
+            startBtDiscovery(ctx, onDone = { scanning = false })
+        } else {
+            Toast.makeText(ctx, "Izin Bluetooth ditolak.", Toast.LENGTH_SHORT).show()
+        }
+    }
+    // Receiver hasil pindaian
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val recv = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                when (intent.action) {
+                    BluetoothDevice.ACTION_FOUND -> {
+                        @Suppress("DEPRECATION")
+                        val d: BluetoothDevice? =
+                            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                        if (d != null &&
+                            discovered.none { it.address == d.address } &&
+                            devices.none { it.address == d.address }) {
+                            discovered = discovered + d
+                        }
+                    }
+                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> scanning = false
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        }
+        ctx.registerReceiver(recv, filter)
+        onDispose {
+            try { ctx.unregisterReceiver(recv) } catch (_: Exception) {}
+            try {
+                val bm = ctx.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+                if (bm?.adapter?.isDiscovering == true) bm.adapter.cancelDiscovery()
+            } catch (_: SecurityException) {}
+        }
+    }
     LaunchedEffect(Unit) {
         savedMac = repo.getSetting(PrefKeys.PRINTER_MAC)
         savedName = repo.getSetting(PrefKeys.PRINTER_NAME)
@@ -113,6 +162,13 @@ fun SettingsScreen(repo: Repository, nav: NavController) {
     // ---- WA ----
     var waNumber by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { waNumber = repo.getSetting(PrefKeys.WA_NUMBER) }
+
+    // ---- Tambah pelanggan baru ----
+    var showAddCustomer by remember { mutableStateOf(false) }
+    var cName by remember { mutableStateOf("") }
+    var cMeterNo by remember { mutableStateOf("") }
+    var cAddress by remember { mutableStateOf("") }
+    var cLastMeter by remember { mutableStateOf("") }
 
     // ---- Restore ----
     val restoreLauncher = rememberLauncherForActivityResult(
@@ -186,7 +242,7 @@ fun SettingsScreen(repo: Repository, nav: NavController) {
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())) {
             GradientHeader("Pengaturan", "AIR KITA • v1.0.0", slim = true)
             Column(Modifier.padding(14.dp)) {
-                SectionTitle("Tarif air")
+                SectionTitle("Perubahan Tarif/m³")
                 Card(shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = CardBg),
                     elevation = CardDefaults.cardElevation(2.dp),
@@ -224,6 +280,29 @@ fun SettingsScreen(repo: Repository, nav: NavController) {
                     }
                 }
 
+                SectionTitle("Pelanggan")
+                Card(shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    elevation = CardDefaults.cardElevation(2.dp),
+                    modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            "Tambah pelanggan baru tanpa membuka Setup Awal.",
+                            fontSize = 12.sp, color = Muted,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Button(
+                            onClick = {
+                                cName = ""; cMeterNo = ""; cAddress = ""; cLastMeter = ""
+                                showAddCustomer = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AirBlue)
+                        ) { Text("Tambah Pelanggan Baru", fontWeight = FontWeight.Bold) }
+                    }
+                }
+
                 SectionTitle("Printer thermal")
                 Card(shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = CardBg),
@@ -252,6 +331,59 @@ fun SettingsScreen(repo: Repository, nav: NavController) {
                                 }
                             }
                         }
+                        if (discovered.isNotEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text("Hasil pindaian:", fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(vertical = 4.dp))
+                            discovered.forEach { d ->
+                                val name = try { d.name ?: d.address } catch (_: SecurityException) { d.address }
+                                Row(
+                                    Modifier.fillMaxWidth().clickable {
+                                        scope.launch {
+                                            repo.setSetting(PrefKeys.PRINTER_MAC, d.address)
+                                            repo.setSetting(PrefKeys.PRINTER_NAME, name)
+                                            savedMac = d.address; savedName = name
+                                            Toast.makeText(ctx, "Printer dipilih: $name", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }.padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(selected = d.address == savedMac, onClick = null)
+                                    Column(Modifier.weight(1f)) {
+                                        Text(name, fontSize = 13.sp)
+                                        Text(d.address, fontSize = 11.sp, color = Muted)
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= 31) {
+                                    val perms = arrayOf(
+                                        Manifest.permission.BLUETOOTH_SCAN,
+                                        Manifest.permission.BLUETOOTH_CONNECT
+                                    )
+                                    val missing = perms.filter {
+                                        ContextCompat.checkSelfPermission(ctx, it) != PackageManager.PERMISSION_GRANTED
+                                    }
+                                    if (missing.isEmpty()) {
+                                        discovered = emptyList()
+                                        scanning = true
+                                        startBtDiscovery(ctx, onDone = { scanning = false })
+                                    } else {
+                                        scanLauncher.launch(missing.toTypedArray())
+                                    }
+                                } else {
+                                    discovered = emptyList()
+                                    scanning = true
+                                    startBtDiscovery(ctx, onDone = { scanning = false })
+                                }
+                            },
+                            enabled = !scanning,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) { Text(if (scanning) "Memindai…" else "Pindai Perangkat Bluetooth Baru") }
                         if (savedMac.isNotBlank()) {
                             Text("Terpilih: $savedName ($savedMac)", fontSize = 11.sp, color = Muted,
                                 modifier = Modifier.padding(top = 4.dp))
@@ -333,6 +465,75 @@ fun SettingsScreen(repo: Repository, nav: NavController) {
             }
         }
     }
+
+    // ---- Dialog tambah pelanggan baru ----
+    if (showAddCustomer) {
+        AlertDialog(
+            onDismissRequest = { showAddCustomer = false },
+            title = { Text("Tambah Pelanggan Baru", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = cName,
+                        onValueChange = { cName = it },
+                        label = { Text("Nama pelanggan") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        singleLine = true, shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = cMeterNo,
+                        onValueChange = { cMeterNo = it },
+                        label = { Text("No. meter") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        singleLine = true, shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = cAddress,
+                        onValueChange = { cAddress = it },
+                        label = { Text("Alamat") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        singleLine = true, shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = cLastMeter,
+                        onValueChange = { cLastMeter = it.filter { ch -> ch.isDigit() }.take(9) },
+                        label = { Text("Meter awal (m³)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        singleLine = true, shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (cName.isBlank() || cMeterNo.isBlank()) {
+                            Toast.makeText(ctx, "Nama dan No. meter wajib diisi.", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        scope.launch(Dispatchers.IO) {
+                            repo.addCustomer(
+                                com.daftech.airkita.data.entity.Customer(
+                                    name = cName.trim(),
+                                    meterNo = cMeterNo.trim(),
+                                    address = cAddress.trim(),
+                                    lastMeter = cLastMeter.toIntOrNull() ?: 0
+                                )
+                            )
+                            withContext(Dispatchers.Main) {
+                                showAddCustomer = false
+                                Toast.makeText(ctx, "Pelanggan ditambahkan.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AirBlue)
+                ) { Text("Simpan") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showAddCustomer = false }) { Text("Batal") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -354,5 +555,21 @@ private fun bondedDevices(ctx: Context): List<BluetoothDevice> {
         bm?.adapter?.bondedDevices?.toList() ?: emptyList()
     } catch (_: SecurityException) {
         emptyList()
+    }
+}
+
+/** Mulai Bluetooth discovery (pindai perangkat baru di sekitar).
+ *  Hasil ditemukan via BroadcastReceiver yang didaftarkan di DisposableEffect. */
+private fun startBtDiscovery(ctx: Context, onDone: () -> Unit) {
+    try {
+        val bm = ctx.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val adapter = bm?.adapter ?: run { onDone(); return }
+        if (!adapter.isEnabled) { onDone(); return }
+        try {
+            if (adapter.isDiscovering) adapter.cancelDiscovery()
+        } catch (_: SecurityException) {}
+        if (!adapter.startDiscovery()) onDone()
+    } catch (_: SecurityException) {
+        onDone()
     }
 }
