@@ -28,7 +28,7 @@ jobs:
           CT=$(ls -d $SDK/cmdline-tools/* 2>/dev/null | head -1)
           export PATH=$CT/bin:$PATH
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" > /dev/null 2>&1 || true
 
       - name: Inject service account (dari secret)
         env:
