@@ -43,7 +43,7 @@ android {
     }
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/{AL2.0,LGPL2.1,INDEX.LIST,DEPENDENCIES,NOTICE,LICENSE,notice.txt,license.txt}"
         }
     }
 }
