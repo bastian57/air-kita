@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -27,7 +28,7 @@ object ReportPdf {
 
     private class Doc(val doc: PrintedPdfDocument) {
         var pageNo = 0
-        lateinit var page: PrintedPdfDocument.Page
+        lateinit var page: PdfDocument.Page
         lateinit var canvas: Canvas
         var y = 0f
 
