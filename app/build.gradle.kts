@@ -24,7 +24,7 @@ android {
         create("release") {
             val ksFile = System.getenv("KEYSTORE_FILE")
             if (!ksFile.isNullOrBlank()) {
-                storeFile = file(ksFile)
+                storeFile = rootProject.file(ksFile)
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
@@ -34,8 +34,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
         }
