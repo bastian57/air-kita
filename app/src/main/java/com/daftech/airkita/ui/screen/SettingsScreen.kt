@@ -438,6 +438,32 @@ fun SettingsScreen(repo: Repository, nav: NavController) {
                     }
                 }
 
+                SectionTitle("Petugas Lapangan")
+                Card(shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    elevation = CardDefaults.cardElevation(2.dp),
+                    modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            "Kirim daftar pelanggan ke HP petugas via QR, terima hasil pencatatan via QR.",
+                            fontSize = 12.sp, color = Muted,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Button(
+                            onClick = { nav.navigate(Routes.SHARE_PETUGAS) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AirBlue)
+                        ) { Text("Bagikan ke Petugas (QR)", fontWeight = FontWeight.Bold) }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { nav.navigate(Routes.RECEIVE_PETUGAS) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) { Text("Terima dari Petugas (Scan QR)") }
+                    }
+                }
+
                 SectionTitle("Tentang")
                 Card(
                     shape = RoundedCornerShape(16.dp),

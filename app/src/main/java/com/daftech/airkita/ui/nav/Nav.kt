@@ -13,9 +13,11 @@ import com.daftech.airkita.ui.screen.HomeScreen
 import com.daftech.airkita.ui.screen.KasScreen
 import com.daftech.airkita.ui.screen.MeterManualScreen
 import com.daftech.airkita.ui.screen.MeterScanScreen
+import com.daftech.airkita.ui.screen.ReceiveFromPetugasScreen
 import com.daftech.airkita.ui.screen.ReportScreen
 import com.daftech.airkita.ui.screen.SettingsScreen
 import com.daftech.airkita.ui.screen.SetupWizardScreen
+import com.daftech.airkita.ui.screen.ShareToPetugasScreen
 
 object Routes {
     const val HOME = "home"
@@ -27,6 +29,8 @@ object Routes {
     const val REPORT = "report"
     const val SETTINGS = "settings"
     const val SETUP_WIZARD = "setup_wizard"
+    const val SHARE_PETUGAS = "share_petugas"
+    const val RECEIVE_PETUGAS = "receive_petugas"
 
     fun meterScan(customerId: Long) = "meter_scan/$customerId"
     fun billDetail(billId: Long) = "bill_detail/$billId"
@@ -55,5 +59,7 @@ fun AirKitaNav(repo: Repository) {
         composable(Routes.REPORT) { ReportScreen(repo, nav) }
         composable(Routes.SETTINGS) { SettingsScreen(repo, nav) }
         composable(Routes.SETUP_WIZARD) { SetupWizardScreen(repo, nav) }
+        composable(Routes.SHARE_PETUGAS) { ShareToPetugasScreen(repo, nav) }
+        composable(Routes.RECEIVE_PETUGAS) { ReceiveFromPetugasScreen(repo, nav) }
     }
 }
