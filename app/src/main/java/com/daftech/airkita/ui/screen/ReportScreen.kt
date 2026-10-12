@@ -69,7 +69,7 @@ fun ReportScreen(repo: Repository, nav: NavController) {
         custCount = repo.billsWithCustomerOnce(period).size
     }
 
-    fun makePdf(): File? = try {
+    suspend fun makePdf(): File? = try {
         ReportPdf.generate(ctx, repo, period)
     } catch (e: Exception) {
         null

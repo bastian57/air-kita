@@ -5,17 +5,18 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
-import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.print.PrintAttributes
+import android.print.pdf.PrintedPdfDocument
 import android.provider.MediaStore
 import com.daftech.airkita.data.Repository
 import com.daftech.airkita.util.Fmt
 import java.io.File
 
 /**
- * Laporan bulanan PDF (A4) — dibuat 100% di HP via android.graphics.pdf.PdfDocument.
+ * Laporan bulanan PDF (A4) — dibuat 100% di HP via android.print.pdf.PrintedPdfDocument.
  * Isi: kop AIR KITA, ringkasan, tabel pelanggan, penunggak, arus kas,
  * tanda tangan, footer "apk by DAFTECH".
  */
@@ -24,9 +25,9 @@ object ReportPdf {
     private const val PH = 842f
     private const val M = 40f
 
-    private class Doc(val doc: PdfDocument) {
+    private class Doc(val doc: PrintedPdfDocument) {
         var pageNo = 0
-        lateinit var page: PdfDocument.Page
+        lateinit var page: PrintedPdfDocument.Page
         lateinit var canvas: Canvas
         var y = 0f
 
@@ -36,9 +37,8 @@ object ReportPdf {
                 doc.finishPage(page)
             }
             pageNo++
-            val pageInfoBuilder = PdfDocument.PageInfo.Builder(PW.toInt(), PH.toInt(), pageNo)
-            val pageInfo: PdfDocument.PageInfo = pageInfoBuilder.build()
-            page = doc.startPage(pageInfo)
+            // PrintedPdfDocument.startPage(int) — tanpa PageInfo.Builder
+            page = doc.startPage(pageNo)
             canvas = page.canvas
             y = M + 6
         }
@@ -93,7 +93,13 @@ object ReportPdf {
         val label = Fmt.periodLabel(period)
         val arrears = rows.filter { !it.bill.paid }
 
-        val doc = PdfDocument()
+        val doc = PrintedPdfDocument(
+            context,
+            PrintAttributes.Builder()
+                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                .build()
+        )
         val d = Doc(doc)
         d.newPage()
 
