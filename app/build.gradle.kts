@@ -13,8 +13,8 @@ android {
         applicationId = "com.daftech.airkita"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         // Diisi workflow dari secret DRIVE_FOLDER_ID (boleh kosong -> backup lokal saja)
         buildConfigField("String", "DRIVE_FOLDER_ID", "\"" + (System.getenv("DRIVE_FOLDER_ID") ?: "") + "\"")

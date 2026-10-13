@@ -11,8 +11,9 @@ import java.security.spec.X509EncodedKeySpec
 /**
  * Sistem lisensi offline AIR KITA.
  *
- * Format kode lisensi: AK1-<base64url(data)>-<base64url(signature)>
- *   data      = "deviceId|buyerName|expiryEpoch" (expiryEpoch 0 = permanen)
+ * Format kode lisensi (v2 universal): AK1-<base64url(data)>-<base64url(signature)>
+ *   data v2   = "deviceId|buyerName|expiryEpoch|productId" (expiryEpoch 0 = permanen)
+ *   data v1   = "deviceId|buyerName|expiryEpoch" (legacy, tetap diterima AIR KITA)
  *   signature = RSA-SHA256(data) dengan private key milik DAFTECH
  *
  * Private key TIDAK ada di repo ini — hanya public key untuk verifikasi.
@@ -39,6 +40,11 @@ object LicenseManager {
     private const val KEY_BUYER = "buyer"
     private const val KEY_EXPIRY = "expiry"
 
+    /** Identitas produk ini dalam ekosistem lisensi DAFTECH universal. */
+    const val PRODUCT_ID = "airkita"
+    const val LICENSE_PREFIX = "AK1-"
+    const val ALLOW_LEGACY_V1 = true
+
     /** ID unik perangkat (ANDROID_ID). Dipakai untuk mengikat lisensi ke 1 HP. */
     fun getDeviceId(context: Context): String {
         return Settings.Secure.getString(
@@ -57,10 +63,10 @@ object LicenseManager {
     /** Validasi kode lisensi terhadap deviceId HP ini. */
     fun validateLicense(rawKey: String, deviceId: String): LicenseResult {
         val key = rawKey.trim()
-        if (!key.startsWith("AK1-")) {
-            return LicenseResult.Invalid("Format kode salah (harus diawali AK1-)")
+        if (!key.startsWith(LICENSE_PREFIX)) {
+            return LicenseResult.Invalid("Format kode salah (harus diawali $LICENSE_PREFIX)")
         }
-        val rest = key.removePrefix("AK1-")
+        val rest = key.removePrefix(LICENSE_PREFIX)
         // Signature RSA-2048 selalu 256 byte → base64url tanpa padding selalu 342 char.
         // (base64url mengandung '-', jadi tidak bisa split pakai lastIndexOf)
         if (rest.length <= 343) {
@@ -95,19 +101,38 @@ object LicenseManager {
         }
         if (!ok) return LicenseResult.Invalid("Kode tidak valid (signature salah)")
 
-        // Parse data: deviceId|buyerName|expiryEpoch
+        // Parse data v2: deviceId|buyerName|expiryEpoch|productId
+        // (v1 legacy: 3 field tanpa productId — hanya bila ALLOW_LEGACY_V1)
         val dataStr = try {
             String(dataBytes, Charsets.UTF_8)
         } catch (_: Exception) {
             return LicenseResult.Invalid("Kode tidak valid")
         }
         val fields = dataStr.split('|')
-        if (fields.size != 3) return LicenseResult.Invalid("Kode tidak valid")
-
-        val licDevice = fields[0]
-        val buyer = fields[1]
-        val expiry = fields[2].toLongOrNull()
-            ?: return LicenseResult.Invalid("Kode tidak valid")
+        val licDevice: String
+        val buyer: String
+        val expiry: Long
+        when (fields.size) {
+            4 -> {
+                if (fields[3] != PRODUCT_ID) {
+                    return LicenseResult.Invalid("Kode ini untuk produk lain")
+                }
+                licDevice = fields[0]
+                buyer = fields[1]
+                expiry = fields[2].toLongOrNull()
+                    ?: return LicenseResult.Invalid("Kode tidak valid")
+            }
+            3 -> {
+                if (!ALLOW_LEGACY_V1) {
+                    return LicenseResult.Invalid("Format kode kedaluwarsa — minta kode baru")
+                }
+                licDevice = fields[0]
+                buyer = fields[1]
+                expiry = fields[2].toLongOrNull()
+                    ?: return LicenseResult.Invalid("Kode tidak valid")
+            }
+            else -> return LicenseResult.Invalid("Kode tidak valid")
+        }
 
         if (licDevice != deviceId) {
             return LicenseResult.Invalid("Kode ini untuk perangkat lain")
