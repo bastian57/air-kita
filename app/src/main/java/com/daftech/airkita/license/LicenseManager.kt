@@ -61,13 +61,14 @@ object LicenseManager {
             return LicenseResult.Invalid("Format kode salah (harus diawali AK1-)")
         }
         val rest = key.removePrefix("AK1-")
-        val lastDash = rest.lastIndexOf('-')
-        if (lastDash <= 0) {
+        // Signature RSA-2048 selalu 256 byte → base64url tanpa padding selalu 342 char.
+        // (base64url mengandung '-', jadi tidak bisa split pakai lastIndexOf)
+        if (rest.length <= 343) {
             return LicenseResult.Invalid("Format kode salah")
         }
-        val dataB64 = rest.substring(0, lastDash)
-        val sigB64 = rest.substring(lastDash + 1)
-        if (dataB64.isBlank() || sigB64.isBlank()) {
+        val dataB64 = rest.dropLast(343) // 342 char sig + 1 pemisah '-'
+        val sigB64 = rest.takeLast(342)
+        if (dataB64.isBlank()) {
             return LicenseResult.Invalid("Format kode salah")
         }
 
