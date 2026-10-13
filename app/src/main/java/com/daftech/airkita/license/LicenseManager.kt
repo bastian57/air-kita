@@ -26,13 +26,13 @@ sealed class LicenseResult {
 object LicenseManager {
     /** Public key RSA-2048 (X.509 DER, base64). Sama di semua APK AIR KITA. */
     const val PUBLIC_KEY_B64 =
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzeFooO9gvvlsZ029Za/f" +
-        "/psVxYGMMY4KhPeMt1qUKwZ/BRWk0rKljlaNoR4WZUkbVhN60m2HRS2sbF/ewo6S" +
-        "OxaZ/aEEzqlgOfIPul4KpCzRoMk2ZBIJ63+oNQR9Dp9sDCxhjhBRej/SJoS3ILgG" +
-        "q0RbZNJSy1YBVj1dvmw6cPQImiQr+v2uusnyDwcMSpxZRxNlP8C2GBkX5yrRpTFr" +
-        "UXUsa5LQtvKEm4VA/2IDRpaealHzqAVLOSAQcAAiiEb0p4ZRxJYW+EtAoEXC/yDo" +
-        "pjIAkMq0aLDKgWDGC/KBcKJ/A4e26b5O9CjyNnf0n3q1IJvbZGdFozOCi2PCc6zU" +
-        "zQIDAQAB"
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmymReWmXPPR+CvKPXUMi" +
+        "Xjs6iW9XYUcJfsJK1fO3AqZ4xwqQr91RJBoTXDxhQzVmYflcPJd+oT8wuHRnPlxk" +
+        "JLnFX4hamoy+db0RkLKOfyoTbksf14ETEjUHp/NN6WWEceg37lrMHEj1Mdc9djuR" +
+        "pQ6oos/k4dmLSo8+N73evWW5LvNeSNQJNeZZFyvjN+0CrOe2ZCvYFvWZz7g49tV6" +
+        "nhB2cQXbVNdTgK4cb7P8OrdQ++ujRSU4AiV4hcX+Mgk5MtTuL80QV/eOe6B+9ZMh" +
+        "+cnIAU7qwujieegEAxSgr5g9L7fGI5OUqTxzeILftCjkpFbbhCg6TY+KOgm4aL5N" +
+        "hwIDAQAB"
 
     const val PREFS_NAME = "airkita_license"
     private const val KEY_ACTIVATED = "activated"
